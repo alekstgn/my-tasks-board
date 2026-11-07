@@ -7,6 +7,7 @@
 <title>Мои задачи</title>
 <style>
 :root{font-family:system-ui,-apple-system,"Segoe UI",sans-serif;color:#253b34;background:#f5f5ef;font-synthesis:none}*{box-sizing:border-box}body{margin:0}main{max-width:1100px;margin:auto;padding:60px 28px}header{border-bottom:1px solid #d8ded4;padding-bottom:32px;margin-bottom:32px}.eyebrow{font-size:12px;font-weight:700;letter-spacing:2px;text-transform:uppercase;color:#577364}h1{font-size:clamp(36px,5vw,56px);letter-spacing:-2px;line-height:1.1;margin:16px 0}header p,.hint{color:#64756b;line-height:1.6}.layout{display:grid;grid-template-columns:340px minmax(0,1fr);gap:28px;align-items:start}.panel{background:#fff;border:1px solid #dce2d8;border-radius:18px;padding:26px}h2{font-size:20px;margin:0 0 24px;letter-spacing:-.4px}label{display:block;font-size:14px;font-weight:600;margin-bottom:9px}input,select,button{font:inherit}input,select{width:100%;min-width:0;background:#fafbf8;color:inherit;border:1px solid #bac7bb;border-radius:9px;padding:13px}input:focus-visible,select:focus-visible,button:focus-visible{outline:3px solid #85b8a2;outline-offset:3px}.field{margin-bottom:22px}button{width:100%;border:0;border-radius:9px;background:#285d46;color:white;padding:14px;font-weight:600;cursor:pointer}button:hover{background:#1d4936}.hint{font-size:13px;margin:18px 0 0}.list-heading{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-bottom:18px}.list-heading h2{margin:0}.count{font-size:13px;color:#567161;background:#e6ece2;padding:5px 10px;border-radius:20px}.empty{text-align:center;padding:64px 24px;border:1px dashed #b9c7b8;border-radius:18px}.empty-icon{display:grid;place-items:center;width:50px;height:50px;border-radius:15px;background:#e5ecdf;margin:0 auto 18px;font-size:26px}.empty h3{font-size:19px;margin:0 0 8px}.empty p{font-size:14px;line-height:1.6;color:#64756b;margin:0}ul{list-style:none;padding:0;margin:0;display:grid;gap:12px}.task{padding:22px;background:white;border:1px solid #dce2d8;border-radius:13px;min-width:0}.task h3{font-size:17px;font-weight:600;line-height:1.5;margin:0 0 14px;overflow-wrap:anywhere;white-space:pre-wrap}.priority{display:inline-block;font-size:12px;color:#64756b;padding:5px 0}.priority.high{color:#9b3c26;background:#fff0e9;border-radius:6px;padding:5px 9px;font-weight:700}.error{color:#a03131;font-size:13px;line-height:1.5;margin:8px 0 0}.storage-error{margin-bottom:24px}footer{font-size:12px;color:#708074;margin-top:36px}[hidden]{display:none!important}@media(max-width:700px){main{padding:32px 20px}.layout{grid-template-columns:minmax(0,1fr);gap:28px}header{padding-bottom:24px;margin-bottom:24px}.panel{padding:22px}.empty{padding:40px 20px}h1{letter-spacing:-1.3px}}
+.steps{border-top:1px solid #e5ebe3;margin-top:16px;padding-top:16px}.steps-title{font-size:14px;font-weight:600;margin:0 0 8px}.steps-progress,.steps-empty{font-size:13px;color:#64756b;margin:0 0 12px}.steps-list{gap:8px;margin-bottom:12px}.step-label{display:flex;align-items:flex-start;gap:9px;font-size:14px;font-weight:400;line-height:1.5;margin:0}.step-label input{width:auto;flex:none;margin:4px 0 0;accent-color:#285d46}.step-label span{overflow-wrap:anywhere;min-width:0}.step-label input:checked + span{text-decoration:line-through;color:#64756b}.step-input{font-size:14px;padding:10px 12px}
 </style>
 </head>
 <body>
@@ -55,10 +56,45 @@ function render() {
     const card = document.createElement('li'); card.className = 'task';
     const heading = document.createElement('h3'); heading.textContent = task.title;
     const badge = document.createElement('span'); badge.className = task.priority === 'high' ? 'priority high' : 'priority'; badge.textContent = 'Приоритет: ' + labels[task.priority];
-    card.append(heading, badge); list.append(card);
+    const steps = task.steps || (task.steps = []);
+    const section = document.createElement('div'); section.className = 'steps';
+    const stepHeading = document.createElement('p'); stepHeading.className = 'steps-title'; stepHeading.textContent = 'Шаги';
+    const progress = document.createElement('p'); progress.className = 'steps-progress';
+    function updateProgress() { progress.textContent = 'выполнено ' + steps.filter(step => step.done).length + ' из ' + steps.length; }
+    updateProgress();
+    const stepList = document.createElement('ul'); stepList.className = 'steps-list';
+    const emptySteps = document.createElement('p'); emptySteps.className = 'steps-empty'; emptySteps.textContent = 'Добавьте первый шаг'; emptySteps.hidden = steps.length > 0;
+    function addStepElement(step) {
+      const item = document.createElement('li');
+      const label = document.createElement('label'); label.className = 'step-label';
+      const checkbox = document.createElement('input'); checkbox.type = 'checkbox'; checkbox.checked = step.done;
+      const text = document.createElement('span'); text.textContent = step.title;
+      checkbox.addEventListener('change', () => { step.done = checkbox.checked; updateProgress(); saveTasks(); });
+      label.append(checkbox, text); item.append(label); stepList.append(item);
+    }
+    steps.forEach(addStepElement);
+    const stepInput = document.createElement('input'); stepInput.className = 'step-input'; stepInput.type = 'text'; stepInput.placeholder = 'Новый шаг — нажмите Enter'; stepInput.setAttribute('aria-label', 'Новый шаг для задачи «' + task.title + '»');
+    stepInput.addEventListener('keydown', event => {
+      if (event.key !== 'Enter' || event.isComposing) return;
+      event.preventDefault();
+      const title = stepInput.value.trim();
+      if (!title) return;
+      const step = { title, done: false }; steps.push(step); addStepElement(step);
+      emptySteps.hidden = true; updateProgress(); stepInput.value = ''; saveTasks();
+    });
+    section.append(stepHeading, progress, emptySteps, stepList, stepInput);
+    card.append(heading, badge, section); list.append(card);
   }
   document.querySelector('#empty').hidden = tasks.length > 0;
   document.querySelector('#count').textContent = 'Всего: ' + tasks.length;
+}
+function saveTasks() {
+  try {
+    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
+    storageError.hidden = true;
+  } catch {
+    warnStorage('Изменения не удалось сохранить. После закрытия страницы новые данные могут потеряться.');
+  }
 }
 function clearError() { titleError.hidden = true; titleInput.removeAttribute('aria-invalid'); }
 titleInput.addEventListener('input', clearError);
@@ -70,12 +106,7 @@ form.addEventListener('submit', event => {
   }
   clearError();
   tasks.push({title, priority: priorityInput.value});
-  try {
-    localStorage.setItem(STORAGE_KEY, JSON.stringify(tasks));
-    storageError.hidden = true;
-  } catch {
-    warnStorage('Задача добавлена, но сохранить её не удалось. После закрытия страницы новые данные могут потеряться.');
-  }
+  saveTasks();
   render(); titleInput.value = ''; titleInput.focus();
   document.querySelector('#status').textContent = 'Задача добавлена.';
 });
